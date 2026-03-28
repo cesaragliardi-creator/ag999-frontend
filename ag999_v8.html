@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AG-999 Crisis Signal Engine</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#4f46e5"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+body { background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+[dir="rtl"] { font-family: 'Segoe UI', Tahoma, system-ui, sans-serif; }
+.header { background: #1a1d27; border-bottom: 1px solid #2d3148; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 34px; height: 34px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: white; flex-shrink: 0; }
+.logo-text { font-size: 14px; font-weight: 600; }
+.logo-sub { font-size: 10px; color: #64748b; }
+.header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hstat { text-align: center; }
+.hstat-val { font-size: 18px; font-weight: 700; color: #818cf8; }
+.hstat-lbl { font-size: 9px; color: #64748b; text-transform: uppercase; }
+/* LANG SELECTOR */
+.lang-sel { display: flex; gap: 3px; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; padding: 3px; }
+.lang-btn { padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #64748b; border-radius: 4px; transition: all 0.15s; }
+.lang-btn.active { background: #4f46e5; color: white; }
+.lang-btn:hover:not(.active) { background: #1e293b; color: #94a3b8; }
+/* MODE TOGGLE */
+.mode-toggle { display: flex; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; overflow: hidden; }
+.mode-btn { padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #64748b; transition: all 0.2s; }
+.mode-btn.active { background: #4f46e5; color: white; }
+/* STATUS */
+.status-bar { background: #0f1117; border-bottom: 1px solid #1e293b; padding: 5px 16px; font-size: 11px; display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sd-conn { background: #fbbf24; animation: blink 1s infinite; }
+.sd-live { background: #4ade80; animation: blink 2s infinite; }
+.sd-err  { background: #f87171; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.layout { display: flex; height: calc(100vh - 90px); }
+.sidebar { width: 340px; min-width: 340px; background: #1a1d27; border-right: 1px solid #2d3148; overflow-y: auto; display: flex; flex-direction: column; }
+.map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+.panel { padding: 14px; border-bottom: 1px solid #2d3148; }
+.ptitle { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.row { margin-bottom: 8px; }
+.row label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 3px; }
+.row input, .row select, .row textarea { width: 100%; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; padding: 8px 10px; color: #e2e8f0; font-size: 12px; outline: none; transition: border 0.15s; }
+.row input:focus, .row select:focus, .row textarea:focus { border-color: #4f46e5; }
+.row textarea { min-height: 50px; resize: vertical; }
+.coords-row { display: flex; gap: 5px; align-items: flex-end; }
+.coords-row .inp { flex: 1; }
+.gps-btn { padding: 8px 10px; background: #1e3a5f; border: 1px solid #1d4ed8; border-radius: 6px; color: #93c5fd; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.dmg-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+.dmg-btn { padding: 8px 4px; border-radius: 6px; border: 1px solid #2d3148; background: #0f1117; color: #64748b; font-size: 10px; cursor: pointer; text-align: center; line-height: 1.3; transition: all 0.15s; }
+.dmg-none    { background: #052e16 !important; border-color: #16a34a !important; color: #4ade80 !important; }
+.dmg-partial { background: #431407 !important; border-color: #ea580c !important; color: #fb923c !important; }
+.dmg-complete{ background: #450a0a !important; border-color: #dc2626 !important; color: #f87171 !important; }
+.photo-area { border: 2px dashed #2d3148; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; position: relative; min-height: 70px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+.photo-area:hover { border-color: #4f46e5; }
+.photo-area.has-photo { border-color: #16a34a; border-style: solid; }
+.photo-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.photo-preview { width: 100%; max-height: 100px; object-fit: cover; border-radius: 5px; display: none; }
+.photo-label { font-size: 11px; color: #64748b; }
+.submit-btn { width: 100%; padding: 10px; background: #4f46e5; border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
+.submit-btn:hover { background: #4338ca; }
+.submit-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+.auto-btn { width: 100%; padding: 10px; background: #312e81; border: 1px solid #4f46e5; border-radius: 6px; color: #a5b4fc; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.auto-btn:hover { background: #3730a3; color: white; }
+.auto-btn:disabled { background: #1e1b4b; color: #4338ca; cursor: not-allowed; }
+.err-msg { background: #450a0a; border: 1px solid #991b1b; border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #f87171; margin-top: 6px; display: none; }
+.info-box { background: #0f172a; border: 1px solid #1e3a5f; border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #93c5fd; margin-bottom: 8px; line-height: 1.5; }
+.gauge-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+.gauge-track { background: #0f1117; border-radius: 4px; height: 9px; overflow: hidden; margin-bottom: 4px; }
+.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease, background 0.6s ease; }
+.gauge-ticks { display: flex; justify-content: space-between; font-size: 10px; color: #475569; margin-bottom: 8px; }
+.regime { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.r-inactive { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+.r-attn     { background: #1c1917; color: #fbbf24; border: 1px solid #92400e; }
+.r-supp     { background: #431407; color: #fb923c; border: 1px solid #9a3412; }
+.r-block    { background: #450a0a; color: #f87171; border: 1px solid #991b1b; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; animation: blink 1.5s infinite; flex-shrink: 0; }
+.dg{background:#4ade80}.dy{background:#fbbf24}.do{background:#fb923c}.dr{background:#f87171}.dp{background:#818cf8}
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 8px; }
+.tcell { background: #0f1117; border-radius: 5px; padding: 7px 9px; }
+.tcell-name { font-size: 10px; color: #64748b; }
+.tcell-val  { font-size: 16px; font-weight: 700; color: #818cf8; }
+/* GAMIFICATION */
+.xp-bar-wrap { background: #0f1117; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+.xp-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.xp-pts { font-size: 18px; font-weight: 700; color: #fbbf24; }
+.xp-lbl { font-size: 10px; color: #64748b; }
+.xp-track { background: #1e293b; border-radius: 4px; height: 7px; overflow: hidden; }
+.xp-fill { height: 100%; background: linear-gradient(90deg,#fbbf24,#f59e0b); border-radius: 4px; transition: width 0.5s; }
+.badges-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.badge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.badge-icon { font-size: 22px; filter: grayscale(1) brightness(0.4); transition: filter 0.3s; }
+.badge-icon.earned { filter: none; }
+.badge-lbl { font-size: 8px; color: #475569; text-align: center; }
+.badge-lbl.earned { color: #94a3b8; }
+/* VERSIONING */
+.ritem { background: #0f1117; border-radius: 6px; padding: 9px; margin-bottom: 5px; border-left: 3px solid; }
+.ritem.none    { border-color: #16a34a; }
+.ritem.partial { border-color: #ea580c; }
+.ritem.complete{ border-color: #dc2626; }
+.rtime { font-size: 10px; color: #64748b; }
+.rtype { font-size: 11px; color: #e2e8f0; font-weight: 500; margin-top: 2px; }
+.rloc  { font-size: 10px; color: #64748b; }
+.rdmg  { font-size: 10px; font-weight: 600; margin-top: 2px; }
+.rthumb { width: 100%; max-height: 70px; object-fit: cover; border-radius: 4px; margin-top: 5px; cursor: pointer; }
+.version-badge { display: inline-block; background: #1e3a5f; border: 1px solid #1d4ed8; border-radius: 10px; padding: 1px 7px; font-size: 9px; color: #93c5fd; margin-left: 4px; }
+.cg{color:#4ade80}.co{color:#fb923c}.cr{color:#f87171}
+.live-badge { display: inline-flex; align-items: center; gap: 4px; background: #052e16; border: 1px solid #166534; border-radius: 10px; padding: 2px 8px; font-size: 10px; color: #4ade80; font-weight: 500; }
+.auto-badge { display: inline-flex; align-items: center; gap: 4px; background: #1e1b4b; border: 1px solid #4f46e5; border-radius: 10px; padding: 2px 8px; font-size: 10px; color: #818cf8; font-weight: 500; }
+.mov { position: absolute; top: 10px; right: 10px; z-index: 999; background: rgba(26,29,39,0.95); border: 1px solid #2d3148; border-radius: 8px; padding: 12px; min-width: 175px; }
+.mov-title { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
+.mov-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 11px; }
+.mov-key { color: #94a3b8; }
+.mov-val { font-weight: 600; }
+.mov-hr { border: none; border-top: 1px solid #2d3148; margin: 6px 0; }
+.map-btns { position: absolute; bottom: 10px; left: 10px; z-index: 999; display: flex; gap: 6px; flex-wrap: wrap; }
+.map-btn { background: rgba(26,29,39,0.92); border: 1px solid #2d3148; border-radius: 5px; padding: 6px 12px; color: #94a3b8; font-size: 11px; cursor: pointer; }
+.map-btn:hover { background: #2d3148; color: #e2e8f0; }
+.click-tip { position: absolute; bottom: 10px; right: 10px; z-index: 999; background: rgba(26,29,39,0.85); border: 1px solid #2d3148; border-radius: 5px; padding: 6px 10px; font-size: 10px; color: #64748b; }
+.lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+.lightbox-close { position: absolute; top: 18px; right: 18px; color: white; font-size: 26px; cursor: pointer; background: none; border: none; }
+.auto-source { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.source-tag { padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; }
+.st-weather { background: #0c4a6e; color: #38bdf8; border: 1px solid #0284c7; }
+.st-seismic { background: #450a0a; color: #f87171; border: 1px solid #dc2626; }
+.progress-bar { background: #0f1117; border-radius: 4px; height: 5px; overflow: hidden; margin: 5px 0; }
+.progress-fill { height: 100%; background: #4f46e5; border-radius: 4px; transition: width 0.3s; }
+/* TOAST */
+.toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #1a1d27; border: 1px solid #4f46e5; border-radius: 8px; padding: 10px 18px; font-size: 13px; color: #e2e8f0; z-index: 9998; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.offline-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 99999; background: #92400e; color: #fef3c7; font-size: 12px; font-weight: 600; padding: 6px 16px; display: none; align-items: center; justify-content: space-between; gap: 8px; }
+.offline-bar.show { display: flex; }
+.offline-queue { background: #451a03; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
+.install-btn { background: #4f46e5; border: none; border-radius: 6px; padding: 5px 12px; color: white; font-size: 11px; font-weight: 600; cursor: pointer; }
+.sync-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 99999; background: #14532d; color: #bbf7d0; font-size: 12px; font-weight: 600; padding: 6px 16px; display: none; align-items: center; gap: 8px; }
+.sync-bar.show { display: flex; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">AG</div>
+    <div>
+      <div class="logo-text">AG-999 Crisis Signal Engine <span class="live-badge" id="live-badge"><span class="dot dg"></span>LIVE</span><span class="auto-badge" id="auto-badge" style="display:none"><span class="dot dp"></span>AUTO</span></div>
+      <div class="logo-sub" data-i18n="subtitle">Real-time risk engine · v2026</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hstat"><div class="hstat-val" id="h-reports">0</div><div class="hstat-lbl" data-i18n="reports">Reports</div></div>
+    <div class="hstat"><div class="hstat-val" id="h-d2">0.000</div><div class="hstat-lbl">AG Index</div></div>
+    <div class="hstat"><div class="hstat-val" id="h-f">1.000</div><div class="hstat-lbl" data-i18n="stability">Stability</div></div>
+    <!-- LANGUAGE SELECTOR -->
+    <div class="lang-sel" id="lang-sel">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('fr')">FR</button>
+      <button class="lang-btn" onclick="setLang('es')">ES</button>
+      <button class="lang-btn" onclick="setLang('ru')">РУ</button>
+      <button class="lang-btn" onclick="setLang('zh')">中</button>
+      <button class="lang-btn" onclick="setLang('ar')">ع</button>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-manual" onclick="setMode('manual')" data-i18n="manual">⚡ Manual</button>
+      <button class="mode-btn" id="btn-auto" onclick="setMode('auto')" data-i18n="automatic">🌐 Auto</button>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot sd-conn" id="sdot"></div>
+  <span id="stxt">Connecting...</span>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+
+    <!-- REGIME MONITOR -->
+    <div class="panel">
+      <div class="ptitle" data-i18n="regime_monitor">AG-999 · Regime Monitor</div>
+      <div class="gauge-lbl" data-i18n="risk_level">Risk Level — Crisis Stress Index</div>
+      <div class="gauge-track"><div class="gauge-fill" id="gfill" style="width:0%;background:#4ade80;"></div></div>
+      <div class="gauge-ticks"><span>0.0</span><span>0.3</span><span>0.8</span><span>1.2</span><span>2.0</span></div>
+      <div id="regime" class="regime r-inactive"><span class="dot dg"></span>INACTIVE · Stable</div>
+      <div class="tgrid">
+        <div class="tcell"><div class="tcell-name">AG Index</div><div class="tcell-val" id="tD2">0.000</div></div>
+        <div class="tcell"><div class="tcell-name" data-i18n="level">Level</div><div class="tcell-val" id="tLVL">0.000</div></div>
+      </div>
+    </div>
+
+    <!-- GAMIFICATION -->
+    <div class="panel">
+      <div class="ptitle" data-i18n="your_score">Your Score</div>
+      <div class="xp-bar-wrap">
+        <div class="xp-top">
+          <div><div class="xp-pts" id="xp-pts">0</div><div class="xp-lbl" data-i18n="points">points</div></div>
+          <div style="text-align:right"><div style="font-size:13px;font-weight:700;color:#818cf8" id="xp-rank">—</div><div class="xp-lbl" data-i18n="rank">rank</div></div>
+        </div>
+        <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:3px;">
+          <span id="xp-sent-lbl">0 <span data-i18n="sent">sent</span></span>
+          <span id="xp-next-lbl" data-i18n="next_badge">Next badge: 1 report</span>
+        </div>
+      </div>
+      <div class="badges-row" id="badges-row">
+        <div class="badge"><div class="badge-icon" id="b0">📍</div><div class="badge-lbl" data-i18n="b_first">First Report</div></div>
+        <div class="badge"><div class="badge-icon" id="b1">🔥</div><div class="badge-lbl" data-i18n="b_active">Active (5)</div></div>
+        <div class="badge"><div class="badge-icon" id="b2">🚨</div><div class="badge-lbl" data-i18n="b_responder">Responder (10)</div></div>
+        <div class="badge"><div class="badge-icon" id="b3">⭐</div><div class="badge-lbl" data-i18n="b_expert">Expert (25)</div></div>
+        <div class="badge"><div class="badge-icon" id="b4">🏆</div><div class="badge-lbl" data-i18n="b_hero">Hero (50)</div></div>
+      </div>
+    </div>
+
+    <!-- MANUAL PANEL -->
+    <div class="panel" id="panel-manual">
+      <div class="ptitle" data-i18n="submit_report">Submit Report</div>
+      <div class="row">
+        <label data-i18n="coordinates">Latitude / Longitude</label>
+        <div class="coords-row">
+          <div class="inp"><input type="number" id="inp-lat" placeholder="Lat" step="0.0001"/></div>
+          <div class="inp"><input type="number" id="inp-lng" placeholder="Lng" step="0.0001"/></div>
+          <button class="gps-btn" onclick="useGPS()">📍 GPS</button>
+        </div>
+      </div>
+      <div class="row">
+        <label data-i18n="photo">Photo (optional)</label>
+        <div class="photo-area" id="photo-area">
+          <input type="file" accept="image/*" capture="environment" onchange="onPhotoSelect(this)" id="photo-input"/>
+          <div id="photo-icon">📷</div>
+          <div class="photo-label" id="photo-label" data-i18n="photo_tap">Tap to take photo or choose from gallery</div>
+          <img class="photo-preview" id="photo-preview"/>
+        </div>
+      </div>
+      <div class="row">
+        <label data-i18n="infra_type">Infrastructure type</label>
+        <select id="sel-infra">
+          <option value="residential" data-i18n="infra_residential">Residential</option>
+          <option value="commercial" data-i18n="infra_commercial">Commercial</option>
+          <option value="government" data-i18n="infra_government">Government</option>
+          <option value="utility" data-i18n="infra_utility">Utility</option>
+          <option value="transport" data-i18n="infra_transport">Transport</option>
+          <option value="community" data-i18n="infra_community">Community</option>
+          <option value="public" data-i18n="infra_public">Public / Recreation</option>
+        </select>
+      </div>
+      <div class="row">
+        <label data-i18n="crisis_type">Crisis type</label>
+        <select id="sel-crisis">
+          <option value="flood" data-i18n="crisis_flood">Flood</option>
+          <option value="earthquake" data-i18n="crisis_earthquake">Earthquake</option>
+          <option value="hurricane" data-i18n="crisis_hurricane">Hurricane/Cyclone</option>
+          <option value="wildfire" data-i18n="crisis_wildfire">Wildfire</option>
+          <option value="tsunami" data-i18n="crisis_tsunami">Tsunami</option>
+          <option value="conflict" data-i18n="crisis_conflict">Conflict</option>
+          <option value="explosion" data-i18n="crisis_explosion">Explosion</option>
+          <option value="chemical" data-i18n="crisis_chemical">Chemical incident</option>
+        </select>
+      </div>
+      <div class="row">
+        <label data-i18n="damage_level">Damage level</label>
+        <div class="dmg-grid">
+          <div class="dmg-btn" id="db-none"     onclick="setDmg('none')"     data-i18n="dmg_none">Minimal/None</div>
+          <div class="dmg-btn" id="db-partial"  onclick="setDmg('partial')"  data-i18n="dmg_partial">Partially damaged</div>
+          <div class="dmg-btn" id="db-complete" onclick="setDmg('complete')" data-i18n="dmg_complete">Completely destroyed</div>
+        </div>
+      </div>
+      <div class="row">
+        <label data-i18n="description">Description</label>
+        <textarea id="inp-desc" data-i18n-ph="desc_placeholder"></textarea>
+      </div>
+      <div class="row">
+        <label data-i18n="debris">Debris requiring clearing?</label>
+        <select id="sel-debris">
+          <option value="no" data-i18n="no">No</option>
+          <option value="yes" data-i18n="yes">Yes</option>
+          <option value="unknown" data-i18n="unknown">Unknown</option>
+        </select>
+      </div>
+      <button class="submit-btn" id="submit-btn" onclick="submitReport()" data-i18n="send_report">📤 Send Report</button>
+      <div class="err-msg" id="err-msg"></div>
+    </div>
+
+    <!-- AUTO PANEL -->
+    <div class="panel" id="panel-auto" style="display:none;">
+      <div class="ptitle" data-i18n="auto_data">Automatic Data · Climate & Seismic</div>
+      <div class="info-box" data-i18n="auto_info">Fetches real data from public APIs and feeds the AG-999 engine automatically.</div>
+      <div class="auto-source">
+        <span class="source-tag st-weather">🌧 Open-Meteo</span>
+        <span class="source-tag st-seismic">🌍 USGS</span>
+      </div>
+      <div class="row">
+        <label data-i18n="region">Region</label>
+        <select id="sel-region">
+          <option value="brasil" data-i18n="reg_brasil">Brazil — Main Cities</option>
+          <option value="sul" data-i18n="reg_sul">South Brazil (RS, SC, PR)</option>
+          <option value="sudeste" data-i18n="reg_sudeste">Southeast (SP, RJ, MG)</option>
+          <option value="nordeste" data-i18n="reg_nordeste">Northeast</option>
+          <option value="norte" data-i18n="reg_norte">North (AM, PA)</option>
+        </select>
+      </div>
+      <div id="auto-progress" style="display:none;">
+        <div class="gauge-lbl" id="auto-ptxt">Fetching data...</div>
+        <div class="progress-bar"><div class="progress-fill" id="auto-pfill" style="width:0%"></div></div>
+      </div>
+      <button class="auto-btn" id="auto-fetch-btn" onclick="fetchAutoData()" data-i18n="fetch_now">🔄 Fetch Data Now</button>
+      <div style="margin-top:6px;font-size:10px;color:#475569;"><span data-i18n="last_update">Last update:</span> <span id="auto-last-ts">—</span></div>
+      <div class="err-msg" id="auto-err-msg"></div>
+    </div>
+
+    <!-- REPORTS LIST -->
+    <div class="panel" style="flex:1;">
+      <div class="ptitle"><span data-i18n="reports_live">Reports</span> (<span id="rcount">0</span>) <span style="font-size:9px;color:#475569;" data-i18n="grouped_hint">· grouped by location</span></div>
+      <div id="rlist"></div>
+      <button id="load-more-btn" onclick="loadMoreReports()" style="display:none;width:100%;padding:8px;background:#1e293b;border:1px solid #2d3148;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;margin-top:6px;">Load more reports...</button>
+    </div>
+
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="mov">
+      <div class="mov-title">AG-999 · Live Risk</div>
+      <div class="mov-row"><span class="mov-key">AG Index</span><span class="mov-val" style="color:#818cf8" id="ov-d2">0.000</span></div>
+      <div class="mov-row"><span class="mov-key" data-i18n="stability">Stability</span><span class="mov-val" style="color:#818cf8" id="ov-f">1.000</span></div>
+      <div class="mov-row"><span class="mov-key">Regime</span><span class="mov-val cg" id="ov-regime">INACTIVE</span></div>
+      <hr class="mov-hr"/>
+      <div class="mov-row"><span class="mov-key" data-i18n="total">Total</span><span class="mov-val" style="color:#818cf8" id="ov-tot">0</span></div>
+      <div class="mov-row"><span class="mov-key" data-i18n="destroyed">Destroyed</span><span class="mov-val cr" id="ov-c">0</span></div>
+      <div class="mov-row"><span class="mov-key" data-i18n="partial">Partial</span><span class="mov-val co" id="ov-p">0</span></div>
+      <div class="mov-row"><span class="mov-key" data-i18n="minimal">Minimal</span><span class="mov-val cg" id="ov-n">0</span></div>
+    </div>
+    <div class="map-btns">
+      <div class="map-btn" onclick="exportGeoJSON()">⬇ GeoJSON</div>
+      <div class="map-btn" onclick="exportCSV()">⬇ CSV</div>
+      <div class="map-btn" onclick="toggleHeat()">🔥 Heatmap</div>
+      <div class="map-btn" id="btn-clear" onclick="clearMyReports()">🗑 <span data-i18n="my_reports">My reports</span></div>
+      <div class="map-btn" id="btn-footprints" onclick="toggleFootprints()" title="Load building footprints from OpenStreetMap (zoom 15+)">🏗️ Buildings</div>
+    </div>
+    <div class="click-tip" id="click-tip" data-i18n="click_map">Click map to set location</div>
+  </div>
+</div>
+
+<div class="offline-bar" id="offline-bar">
+  <span>📵 Offline — reports saved locally <span class="offline-queue" id="queue-count">0 queued</span></span>
+  <span style="font-size:10px;color:#fcd34d;">Will sync automatically when connected</span>
+</div>
+<div class="sync-bar" id="sync-bar">
+  <span>🔄</span><span id="sync-msg">Syncing offline reports...</span>
+</div>
+<button id="install-btn" class="install-btn" style="display:none;position:fixed;bottom:80px;right:12px;z-index:9997;">📲 Install App</button>
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="photo"/>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, getCountFromServer, limit, startAfter, getDocs }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── CONFIG ──────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBSV6awRHGqNPTqJm4BQFtWmY2xI5bAMnc",
+  authDomain: "ag999-crisis-engine.firebaseapp.com",
+  projectId: "ag999-crisis-engine",
+  storageBucket: "ag999-crisis-engine.firebasestorage.app",
+  messagingSenderId: "574230712351",
+  appId: "1:574230712351:web:bb24eda888b459859f052a"
+};
+const _e = ['htt','ps:/','/',atob('YWc5OTktYXBpLm9ucmVuZGVyLmNvbQ=='),'/ag999'].join('');
+const _k = (()=>{ const p=['AG9','99-','2026','-KEY']; return p.join(''); })();
+
+// ── TRANSLATIONS ────────────────────────────────────
+const T = {
+  en: {
+    subtitle:'Real-time risk engine · v2026', reports:'Reports', stability:'Stability',
+    manual:'⚡ Manual', automatic:'🌐 Auto', regime_monitor:'AG-999 · Regime Monitor',
+    risk_level:'Risk Level — Crisis Stress Index', level:'Level', your_score:'Your Score',
+    points:'points', rank:'rank', sent:'sent', next_badge:'Next badge:',
+    b_first:'First Report', b_active:'Active (5)', b_responder:'Responder (10)', b_expert:'Expert (25)', b_hero:'Hero (50)',
+    submit_report:'Submit Report', coordinates:'Latitude / Longitude', photo:'Photo (optional)',
+    photo_tap:'Tap to take photo or choose from gallery', infra_type:'Infrastructure type',
+    infra_residential:'Residential', infra_commercial:'Commercial', infra_government:'Government',
+    infra_utility:'Utility', infra_transport:'Transport', infra_community:'Community', infra_public:'Public / Recreation',
+    crisis_type:'Crisis type', crisis_flood:'Flood', crisis_earthquake:'Earthquake',
+    crisis_hurricane:'Hurricane/Cyclone', crisis_wildfire:'Wildfire', crisis_tsunami:'Tsunami',
+    crisis_conflict:'Conflict', crisis_explosion:'Explosion', crisis_chemical:'Chemical incident',
+    damage_level:'Damage level', dmg_none:'Minimal/None', dmg_partial:'Partially damaged', dmg_complete:'Completely destroyed',
+    description:'Description', desc_placeholder:'e.g. Bridge collapsed, school destroyed...',
+    debris:'Debris requiring clearing?', no:'No', yes:'Yes', unknown:'Unknown',
+    send_report:'📤 Send Report', auto_data:'Automatic Data · Climate & Seismic',
+    auto_info:'Fetches real data from public APIs automatically. Data not stored.',
+    region:'Region', reg_brasil:'Brazil — Main Cities', reg_sul:'South Brazil', reg_sudeste:'Southeast', reg_nordeste:'Northeast', reg_norte:'North',
+    fetch_now:'🔄 Fetch Data Now', last_update:'Last update:', reports_live:'Reports', grouped_hint:'· grouped by location',
+    total:'Total', destroyed:'Destroyed', partial:'Partial', minimal:'Minimal',
+    my_reports:'My reports', click_map:'Click map to set location',
+    sent_ok:'✓ Report sent! +10 pts', badge_earned:'🏅 Badge earned: ',
+    versions:'versions', latest:'latest',
+  },
+  fr: {
+    subtitle:'Moteur de risque en temps réel · v2026', reports:'Rapports', stability:'Stabilité',
+    manual:'⚡ Manuel', automatic:'🌐 Auto', regime_monitor:'AG-999 · Moniteur de régime',
+    risk_level:'Niveau de risque — Indice de stress', level:'Niveau', your_score:'Votre score',
+    points:'points', rank:'rang', sent:'envoyés', next_badge:'Prochain badge:',
+    b_first:'Premier rapport', b_active:'Actif (5)', b_responder:'Intervenant (10)', b_expert:'Expert (25)', b_hero:'Héros (50)',
+    submit_report:'Soumettre rapport', coordinates:'Latitude / Longitude', photo:'Photo (optionnel)',
+    photo_tap:'Appuyez pour prendre une photo', infra_type:'Type d\'infrastructure',
+    infra_residential:'Résidentiel', infra_commercial:'Commercial', infra_government:'Gouvernement',
+    infra_utility:'Utilité', infra_transport:'Transport', infra_community:'Communauté', infra_public:'Public / Loisirs',
+    crisis_type:'Type de crise', crisis_flood:'Inondation', crisis_earthquake:'Séisme',
+    crisis_hurricane:'Ouragan/Cyclone', crisis_wildfire:'Incendie', crisis_tsunami:'Tsunami',
+    crisis_conflict:'Conflit', crisis_explosion:'Explosion', crisis_chemical:'Incident chimique',
+    damage_level:'Niveau de dommages', dmg_none:'Minimal/Aucun', dmg_partial:'Partiellement endommagé', dmg_complete:'Complètement détruit',
+    description:'Description', desc_placeholder:'ex: Pont effondré, école détruite...',
+    debris:'Débris à dégager?', no:'Non', yes:'Oui', unknown:'Inconnu',
+    send_report:'📤 Envoyer rapport', auto_data:'Données automatiques · Climat & Séismes',
+    auto_info:'Récupère des données réelles automatiquement.',
+    region:'Région', reg_brasil:'Brésil', reg_sul:'Sud Brésil', reg_sudeste:'Sud-Est', reg_nordeste:'Nord-Est', reg_norte:'Nord',
+    fetch_now:'🔄 Récupérer maintenant', last_update:'Dernière mise à jour:', reports_live:'Rapports', grouped_hint:'· groupés par lieu',
+    total:'Total', destroyed:'Détruits', partial:'Partiel', minimal:'Minimal',
+    my_reports:'Mes rapports', click_map:'Cliquez sur la carte',
+    sent_ok:'✓ Rapport envoyé! +10 pts', badge_earned:'🏅 Badge obtenu: ',
+    versions:'versions', latest:'dernier',
+  },
+  es: {
+    subtitle:'Motor de riesgo en tiempo real · v2026', reports:'Reportes', stability:'Estabilidad',
+    manual:'⚡ Manual', automatic:'🌐 Auto', regime_monitor:'AG-999 · Monitor de régimen',
+    risk_level:'Nivel de riesgo — Índice de estrés', level:'Nivel', your_score:'Tu puntuación',
+    points:'puntos', rank:'rango', sent:'enviados', next_badge:'Próxima insignia:',
+    b_first:'Primer reporte', b_active:'Activo (5)', b_responder:'Respondedor (10)', b_expert:'Experto (25)', b_hero:'Héroe (50)',
+    submit_report:'Enviar reporte', coordinates:'Latitud / Longitud', photo:'Foto (opcional)',
+    photo_tap:'Toca para tomar foto', infra_type:'Tipo de infraestructura',
+    infra_residential:'Residencial', infra_commercial:'Comercial', infra_government:'Gobierno',
+    infra_utility:'Servicios', infra_transport:'Transporte', infra_community:'Comunidad', infra_public:'Público / Recreación',
+    crisis_type:'Tipo de crisis', crisis_flood:'Inundación', crisis_earthquake:'Terremoto',
+    crisis_hurricane:'Huracán/Ciclón', crisis_wildfire:'Incendio', crisis_tsunami:'Tsunami',
+    crisis_conflict:'Conflicto', crisis_explosion:'Explosión', crisis_chemical:'Incidente químico',
+    damage_level:'Nivel de daño', dmg_none:'Mínimo/Ninguno', dmg_partial:'Parcialmente dañado', dmg_complete:'Completamente destruido',
+    description:'Descripción', desc_placeholder:'ej: Puente colapsado, escuela destruida...',
+    debris:'¿Escombros que requieren limpieza?', no:'No', yes:'Sí', unknown:'Desconocido',
+    send_report:'📤 Enviar reporte', auto_data:'Datos automáticos · Clima y Sismos',
+    auto_info:'Obtiene datos reales de APIs públicas automáticamente.',
+    region:'Región', reg_brasil:'Brasil', reg_sul:'Sur de Brasil', reg_sudeste:'Sudeste', reg_nordeste:'Nordeste', reg_norte:'Norte',
+    fetch_now:'🔄 Obtener ahora', last_update:'Última actualización:', reports_live:'Reportes', grouped_hint:'· agrupados por ubicación',
+    total:'Total', destroyed:'Destruidos', partial:'Parcial', minimal:'Mínimo',
+    my_reports:'Mis reportes', click_map:'Clic en el mapa',
+    sent_ok:'✓ ¡Reporte enviado! +10 pts', badge_earned:'🏅 Insignia obtenida: ',
+    versions:'versiones', latest:'último',
+  },
+  ru: {
+    subtitle:'Система риска в реальном времени · v2026', reports:'Отчёты', stability:'Стабильность',
+    manual:'⚡ Ручной', automatic:'🌐 Авто', regime_monitor:'AG-999 · Монитор режима',
+    risk_level:'Уровень риска', level:'Уровень', your_score:'Ваш счёт',
+    points:'очков', rank:'ранг', sent:'отправлено', next_badge:'Следующий значок:',
+    b_first:'Первый отчёт', b_active:'Активный (5)', b_responder:'Реагирующий (10)', b_expert:'Эксперт (25)', b_hero:'Герой (50)',
+    submit_report:'Отправить отчёт', coordinates:'Широта / Долгота', photo:'Фото (необязательно)',
+    photo_tap:'Нажмите для фото', infra_type:'Тип инфраструктуры',
+    infra_residential:'Жилой', infra_commercial:'Коммерческий', infra_government:'Правительственный',
+    infra_utility:'Коммунальный', infra_transport:'Транспорт', infra_community:'Общественный', infra_public:'Публичный / Отдых',
+    crisis_type:'Тип кризиса', crisis_flood:'Наводнение', crisis_earthquake:'Землетрясение',
+    crisis_hurricane:'Ураган', crisis_wildfire:'Пожар', crisis_tsunami:'Цунами',
+    crisis_conflict:'Конфликт', crisis_explosion:'Взрыв', crisis_chemical:'Химический инцидент',
+    damage_level:'Уровень ущерба', dmg_none:'Минимальный/Нет', dmg_partial:'Частично повреждён', dmg_complete:'Полностью разрушен',
+    description:'Описание', desc_placeholder:'напр: Мост обрушился...',
+    debris:'Требуется расчистка завалов?', no:'Нет', yes:'Да', unknown:'Неизвестно',
+    send_report:'📤 Отправить', auto_data:'Авто данные · Климат и Сейсмика',
+    auto_info:'Автоматически получает данные из публичных API.',
+    region:'Регион', reg_brasil:'Бразилия', reg_sul:'Юг Бразилии', reg_sudeste:'Юго-Восток', reg_nordeste:'Северо-Восток', reg_norte:'Север',
+    fetch_now:'🔄 Получить данные', last_update:'Последнее обновление:', reports_live:'Отчёты', grouped_hint:'· сгруппированы',
+    total:'Всего', destroyed:'Разрушено', partial:'Частично', minimal:'Минимально',
+    my_reports:'Мои отчёты', click_map:'Нажмите на карту',
+    sent_ok:'✓ Отчёт отправлен! +10 pts', badge_earned:'🏅 Значок получен: ',
+    versions:'версий', latest:'последний',
+  },
+  zh: {
+    subtitle:'实时风险引擎 · v2026', reports:'报告', stability:'稳定性',
+    manual:'⚡ 手动', automatic:'🌐 自动', regime_monitor:'AG-999 · 风险监测',
+    risk_level:'风险等级', level:'级别', your_score:'您的积分',
+    points:'积分', rank:'排名', sent:'已发送', next_badge:'下一徽章:',
+    b_first:'首次报告', b_active:'活跃 (5)', b_responder:'响应者 (10)', b_expert:'专家 (25)', b_hero:'英雄 (50)',
+    submit_report:'提交报告', coordinates:'纬度 / 经度', photo:'照片（可选）',
+    photo_tap:'点击拍照或选择图片', infra_type:'基础设施类型',
+    infra_residential:'住宅', infra_commercial:'商业', infra_government:'政府',
+    infra_utility:'公用事业', infra_transport:'交通', infra_community:'社区', infra_public:'公共 / 娱乐',
+    crisis_type:'危机类型', crisis_flood:'洪水', crisis_earthquake:'地震',
+    crisis_hurricane:'飓风/台风', crisis_wildfire:'野火', crisis_tsunami:'海啸',
+    crisis_conflict:'冲突', crisis_explosion:'爆炸', crisis_chemical:'化学事故',
+    damage_level:'损坏程度', dmg_none:'轻微/无损', dmg_partial:'部分损坏', dmg_complete:'完全摧毁',
+    description:'描述', desc_placeholder:'例如：桥梁倒塌，学校损毁...',
+    debris:'需要清理碎片？', no:'否', yes:'是', unknown:'未知',
+    send_report:'📤 发送报告', auto_data:'自动数据 · 气候与地震',
+    auto_info:'自动从公共API获取实时数据。',
+    region:'地区', reg_brasil:'巴西', reg_sul:'巴西南部', reg_sudeste:'东南部', reg_nordeste:'东北部', reg_norte:'北部',
+    fetch_now:'🔄 立即获取', last_update:'最后更新:', reports_live:'报告', grouped_hint:'· 按位置分组',
+    total:'总计', destroyed:'已摧毁', partial:'部分', minimal:'轻微',
+    my_reports:'我的报告', click_map:'点击地图设置位置',
+    sent_ok:'✓ 报告已发送！+10分', badge_earned:'🏅 获得徽章：',
+    versions:'版本', latest:'最新',
+  },
+  ar: {
+    subtitle:'محرك المخاطر في الوقت الحقيقي · v2026', reports:'تقارير', stability:'الاستقرار',
+    manual:'⚡ يدوي', automatic:'🌐 تلقائي', regime_monitor:'AG-999 · مراقبة النظام',
+    risk_level:'مستوى الخطر', level:'المستوى', your_score:'نقاطك',
+    points:'نقطة', rank:'الترتيب', sent:'مُرسل', next_badge:'الشارة التالية:',
+    b_first:'التقرير الأول', b_active:'نشط (5)', b_responder:'مستجيب (10)', b_expert:'خبير (25)', b_hero:'بطل (50)',
+    submit_report:'إرسال تقرير', coordinates:'خط العرض / خط الطول', photo:'صورة (اختياري)',
+    photo_tap:'اضغط لالتقاط صورة', infra_type:'نوع البنية التحتية',
+    infra_residential:'سكني', infra_commercial:'تجاري', infra_government:'حكومي',
+    infra_utility:'مرافق', infra_transport:'نقل', infra_community:'مجتمعي', infra_public:'عام / ترفيهي',
+    crisis_type:'نوع الأزمة', crisis_flood:'فيضان', crisis_earthquake:'زلزال',
+    crisis_hurricane:'إعصار', crisis_wildfire:'حريق', crisis_tsunami:'تسونامي',
+    crisis_conflict:'نزاع', crisis_explosion:'انفجار', crisis_chemical:'حادثة كيميائية',
+    damage_level:'مستوى الضرر', dmg_none:'ضئيل/لا يوجد', dmg_partial:'تضرر جزئي', dmg_complete:'دمار كامل',
+    description:'الوصف', desc_placeholder:'مثال: انهار جسر، دُمّرت مدرسة...',
+    debris:'هل توجد أنقاض تحتاج إلى إزالة؟', no:'لا', yes:'نعم', unknown:'غير معروف',
+    send_report:'📤 إرسال التقرير', auto_data:'بيانات تلقائية · مناخ وزلازل',
+    auto_info:'يجلب بيانات حقيقية من واجهات برمجية عامة تلقائياً.',
+    region:'المنطقة', reg_brasil:'البرازيل', reg_sul:'جنوب البرازيل', reg_sudeste:'الجنوب الشرقي', reg_nordeste:'الشمال الشرقي', reg_norte:'الشمال',
+    fetch_now:'🔄 جلب البيانات الآن', last_update:'آخر تحديث:', reports_live:'التقارير', grouped_hint:'· مجمعة حسب الموقع',
+    total:'الإجمالي', destroyed:'مدمّر', partial:'جزئي', minimal:'ضئيل',
+    my_reports:'تقاريري', click_map:'انقر على الخريطة',
+    sent_ok:'✓ تم إرسال التقرير! +10 نقطة', badge_earned:'🏅 حصلت على شارة: ',
+    versions:'إصدارات', latest:'أحدث',
+  }
+};
+
+let currentLang = 'en';
+
+window.setLang = function(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  // Update lang buttons
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === {en:'EN',fr:'FR',es:'ES',ru:'РУ',zh:'中',ar:'ع'}[lang]);
+  });
+  applyTranslations();
+};
+
+function applyTranslations() {
+  const t = T[currentLang] || T.en;
+  // data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(t[key]) el.textContent = t[key];
+  });
+  // data-i18n-ph placeholders
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    if(t[key]) el.placeholder = t[key];
+  });
+  // select options
+  document.querySelectorAll('option[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(t[key]) el.textContent = t[key];
+  });
+  updateXPDisplay();
+}
+
+// ── GAMIFICATION ────────────────────────────────────
+const BADGES = [
+  {id:'b0', threshold:1,  name_key:'b_first'},
+  {id:'b1', threshold:5,  name_key:'b_active'},
+  {id:'b2', threshold:10, name_key:'b_responder'},
+  {id:'b3', threshold:25, name_key:'b_expert'},
+  {id:'b4', threshold:50, name_key:'b_hero'},
+];
+let xpData = JSON.parse(localStorage.getItem('ag999_xp') || '{"pts":0,"sent":0,"badges":[]}');
+
+function saveXP() { localStorage.setItem('ag999_xp', JSON.stringify(xpData)); }
+
+function addXP(pts) {
+  xpData.pts += pts;
+  xpData.sent += 1;
+  // Check badges
+  const t = T[currentLang] || T.en;
+  BADGES.forEach(b => {
+    if(xpData.sent >= b.threshold && !xpData.badges.includes(b.id)) {
+      xpData.badges.push(b.id);
+      showToast(t.badge_earned + (t[b.name_key] || b.name_key));
+    }
+  });
+  saveXP();
+  updateXPDisplay();
+}
+
+function updateXPDisplay() {
+  const t = T[currentLang] || T.en;
+  document.getElementById('xp-pts').textContent = xpData.pts;
+  // Rank
+  const ranks = ['—','Bronze','Silver','Gold','Platinum','Legend'];
+  const ri = Math.min(Math.floor(xpData.sent/10), ranks.length-1);
+  document.getElementById('xp-rank').textContent = ranks[ri];
+  // Progress to next badge
+  const next = BADGES.find(b => xpData.sent < b.threshold);
+  if(next) {
+    const pct = (xpData.sent / next.threshold) * 100;
+    document.getElementById('xp-fill').style.width = pct + '%';
+    document.getElementById('xp-next-lbl').textContent = (t.next_badge||'Next:') + ' ' + next.threshold + ' ' + (t.sent||'sent');
+  } else {
+    document.getElementById('xp-fill').style.width = '100%';
+    document.getElementById('xp-next-lbl').textContent = '🏆 Max level!';
+  }
+  document.getElementById('xp-sent-lbl').innerHTML = xpData.sent + ' <span>' + (t.sent||'sent') + '</span>';
+  // Badges
+  BADGES.forEach(b => {
+    const el = document.getElementById(b.id);
+    if(el) {
+      el.classList.toggle('earned', xpData.badges.includes(b.id));
+      const lbl = el.nextElementSibling;
+      if(lbl) { lbl.classList.toggle('earned', xpData.badges.includes(b.id)); }
+    }
+  });
+}
+
+// ── TOAST ───────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── FIREBASE ────────────────────────────────────────
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── MAP ─────────────────────────────────────────────
+const map = L.map('map').setView([-15, -50], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+}).addTo(map);
+map.on('click', e => {
+  if(currentMode === 'manual') {
+    document.getElementById('inp-lat').value = e.latlng.lat.toFixed(5);
+    document.getElementById('inp-lng').value = e.latlng.lng.toFixed(5);
+  }
+});
+
+// ── STATE ───────────────────────────────────────────
+let reports = [], autoReports = [], selDmg = 'partial', heatOn = false, heatCircles = [];
+let photoBase64 = null;
+const markers = {}, autoMarkers = [], myReportIds = new Set();
+const mColors = {none:'#4ade80', partial:'#fb923c', complete:'#f87171'};
+let currentMode = 'manual';
+
+// ── VERSIONING — group reports within ~150m ─────────
+const GRID = 0.0015; // ~150m
+function gridKey(lat, lng) {
+  return Math.round(lat/GRID) + '|' + Math.round(lng/GRID);
+}
+function groupReports(reps) {
+  const groups = {};
+  reps.forEach(r => {
+    const k = gridKey(r.lat, r.lng);
+    if(!groups[k]) groups[k] = [];
+    groups[k].push(r);
+  });
+  // Sort each group by timestamp desc, return latest + count
+  return Object.values(groups).map(g => {
+    g.sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+    return { latest: g[0], count: g.length, all: g };
+  });
+}
+
+// ── REGIONS ─────────────────────────────────────────
+const REGIONS = {
+  brasil:[
+    {name:'Porto Alegre',lat:-30.033,lng:-51.230},{name:'São Paulo',lat:-23.550,lng:-46.633},
+    {name:'Rio de Janeiro',lat:-22.906,lng:-43.172},{name:'Curitiba',lat:-25.428,lng:-49.273},
+    {name:'Florianópolis',lat:-27.594,lng:-48.548},{name:'Salvador',lat:-12.971,lng:-38.501},
+    {name:'Recife',lat:-8.054,lng:-34.881},{name:'Fortaleza',lat:-3.718,lng:-38.543},
+    {name:'Manaus',lat:-3.119,lng:-60.021},{name:'Belém',lat:-1.455,lng:-48.502},
+  ],
+  sul:[
+    {name:'Porto Alegre',lat:-30.033,lng:-51.230},{name:'Florianópolis',lat:-27.594,lng:-48.548},
+    {name:'Curitiba',lat:-25.428,lng:-49.273},{name:'Pelotas',lat:-31.762,lng:-52.337},{name:'Blumenau',lat:-26.919,lng:-49.066},
+  ],
+  sudeste:[
+    {name:'São Paulo',lat:-23.550,lng:-46.633},{name:'Rio de Janeiro',lat:-22.906,lng:-43.172},
+    {name:'Belo Horizonte',lat:-19.916,lng:-43.934},{name:'Campinas',lat:-22.905,lng:-47.060},{name:'Santos',lat:-23.960,lng:-46.333},
+  ],
+  nordeste:[
+    {name:'Salvador',lat:-12.971,lng:-38.501},{name:'Recife',lat:-8.054,lng:-34.881},
+    {name:'Fortaleza',lat:-3.718,lng:-38.543},{name:'Natal',lat:-5.795,lng:-35.209},{name:'Maceió',lat:-9.665,lng:-35.735},
+  ],
+  norte:[
+    {name:'Manaus',lat:-3.119,lng:-60.021},{name:'Belém',lat:-1.455,lng:-48.502},
+    {name:'Porto Velho',lat:-8.761,lng:-63.900},{name:'Macapá',lat:0.034,lng:-51.066},{name:'Santarém',lat:-2.443,lng:-54.708},
+  ],
+};
+
+// ── BACKEND ─────────────────────────────────────────
+async function calcAG999(reps) {
+  if(!reps.length) return {D2:0,F:1,regime:'INACTIVE',level:0};
+  try {
+    const res = await fetch(_e,{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_k},
+      body:JSON.stringify({reports:reps.map(r=>({damage:r.damage,infraType:r.infraType,crisisType:r.crisisType}))})});
+    if(!res.ok) throw new Error('API error');
+    const d = await res.json();
+    return {D2:d.risk_index||0,F:d.stability||1,regime:d.regime||'INACTIVE',level:d.level||0};
+  } catch(e){ return {D2:0,F:1,regime:'INACTIVE',level:0}; }
+}
+
+function getRegime(regime) {
+  const m = {
+    'INACTIVE':    {label:'INACTIVE · Stable',       cls:'r-inactive',dot:'dg',oc:'cg'},
+    'ATTENUATING': {label:'ATTENUATING · Monitor',   cls:'r-attn',    dot:'dy',oc:'co'},
+    'SUPPRESSING': {label:'SUPPRESSING · High Risk', cls:'r-supp',    dot:'do',oc:'co'},
+    'TOTAL_BLOCK': {label:'TOTAL BLOCK · Emergency', cls:'r-block',   dot:'dr',oc:'cr'},
+  };
+  return m[regime]||m['INACTIVE'];
+}
+function gcolor(lv){return lv<0.15?'#4ade80':lv<0.4?'#fbbf24':lv<0.6?'#fb923c':'#f87171';}
+
+// ── MODE ────────────────────────────────────────────
+window.setMode = function(mode) {
+  currentMode = mode;
+  document.getElementById('btn-manual').classList.toggle('active', mode==='manual');
+  document.getElementById('btn-auto').classList.toggle('active', mode==='auto');
+  document.getElementById('live-badge').style.display = mode==='manual'?'':'none';
+  document.getElementById('auto-badge').style.display = mode==='auto'?'':'none';
+  document.getElementById('panel-manual').style.display = mode==='manual'?'':'none';
+  document.getElementById('panel-auto').style.display   = mode==='auto'?'':'none';
+  document.getElementById('btn-clear').style.display    = mode==='manual'?'':'none';
+  const t = T[currentLang]||T.en;
+  document.getElementById('click-tip').textContent = mode==='manual'?(t.click_map||'Click map'):'🌐 Auto mode active';
+  if(mode==='manual'){ clearAutoMarkers(); autoReports=[]; }
+  updateUI();
+};
+
+// ── AUTO FETCH ──────────────────────────────────────
+window.fetchAutoData = async function() {
+  const btn=document.getElementById('auto-fetch-btn');
+  const prog=document.getElementById('auto-progress');
+  const pfill=document.getElementById('auto-pfill');
+  const ptxt=document.getElementById('auto-ptxt');
+  const errEl=document.getElementById('auto-err-msg');
+  errEl.style.display='none'; btn.disabled=true; prog.style.display='block';
+  const region=document.getElementById('sel-region').value;
+  const cities=REGIONS[region]||REGIONS.brasil;
+  clearAutoMarkers(); autoReports=[]; const newReps=[];
+  try {
+    ptxt.textContent='Fetching climate data...'; pfill.style.width='10%';
+    const wps=cities.map(city=>fetch(`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lng}&current=precipitation,wind_speed_10m,weather_code&timezone=auto`)
+      .then(r=>r.json()).then(d=>({city,weather:d.current})).catch(()=>({city,weather:null})));
+    const wr=await Promise.all(wps);
+    pfill.style.width='45%';
+    for(const {city,weather} of wr){
+      if(!weather) continue;
+      const precip=weather.precipitation||0,wind=weather.wind_speed_10m||0,wcode=weather.weather_code||0;
+      if(precip>5) newReps.push({id:`auto_w_${city.name}_f`,lat:city.lat,lng:city.lng,infraType:'utility',crisisType:'flood',
+        damage:precip>50?'complete':precip>20?'partial':'none',desc:`${city.name} — ${precip.toFixed(1)} mm/h`,
+        ts:new Date().toISOString().slice(0,19).replace('T',' '),source:'climate'});
+      if(wind>20) newReps.push({id:`auto_w_${city.name}_w`,lat:city.lat+0.02,lng:city.lng+0.02,infraType:'transport',crisisType:'hurricane',
+        damage:wind>60?'complete':wind>40?'partial':'none',desc:`${city.name} — ${wind.toFixed(1)} km/h`,
+        ts:new Date().toISOString().slice(0,19).replace('T',' '),source:'climate'});
+      if(wcode>=95) newReps.push({id:`auto_w_${city.name}_s`,lat:city.lat-0.02,lng:city.lng-0.02,infraType:'community',crisisType:'flood',
+        damage:'partial',desc:`${city.name} — Storm (WMO ${wcode})`,
+        ts:new Date().toISOString().slice(0,19).replace('T',' '),source:'climate'});
+    }
+    ptxt.textContent='Fetching seismic data...'; pfill.style.width='60%';
+    const usgsRes=await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+    const usgsData=await usgsRes.json(); pfill.style.width='80%';
+    const quakes=(usgsData.features||[]).filter(f=>{const[lng,lat]=f.geometry.coordinates;return lat>=-35&&lat<=5&&lng>=-75&&lng<=-34;});
+    for(const q of quakes.slice(0,15)){
+      const mag=q.properties.mag||0; if(mag<1.5) continue;
+      const[lng,lat]=q.geometry.coordinates;
+      newReps.push({id:`auto_s_${q.id}`,lat,lng,infraType:'residential',crisisType:'earthquake',
+        damage:mag>=5.0?'complete':mag>=3.5?'partial':'none',
+        desc:`M${mag.toFixed(1)} — ${q.properties.place||'S. America'}`,
+        ts:new Date(q.properties.time).toISOString().slice(0,19).replace('T',' '),source:'seismic'});
+    }
+    autoReports=newReps;
+    for(const r of autoReports) addAutoMarker(r);
+    document.getElementById('auto-last-ts').textContent=new Date().toLocaleTimeString();
+    pfill.style.width='100%'; ptxt.textContent=`✓ ${newReps.length} events loaded`;
+    await updateUI();
+    setTimeout(()=>{prog.style.display='none';},2000);
+  } catch(err){
+    errEl.textContent='Error: '+err.message; errEl.style.display='block'; prog.style.display='none';
+  }
+  btn.disabled=false;
+};
+
+function addAutoMarker(r){
+  const color=mColors[r.damage]||'#818cf8';
+  const icon=r.source==='seismic'
+    ?L.divIcon({className:'',html:`<div style="width:15px;height:15px;background:${color};clip-path:polygon(50% 0%,0% 100%,100% 100%);filter:drop-shadow(0 0 5px ${color}88);"></div>`,iconSize:[15,15],iconAnchor:[7,15]})
+    :L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:2px;background:${color};border:1px solid rgba(255,255,255,0.5);box-shadow:0 0 7px ${color}88;transform:rotate(45deg);"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+  const mk=L.marker([r.lat,r.lng],{icon}).addTo(map);
+  mk.bindPopup(`<b>${r.source==='seismic'?'🌍 Seismic':'🌧 Climate'}</b><br>${r.desc}<br><small>${r.ts}</small>`);
+  autoMarkers.push(mk);
+}
+function clearAutoMarkers(){ autoMarkers.forEach(m=>map.removeLayer(m)); autoMarkers.length=0; }
+
+// ── UI UPDATE ────────────────────────────────────────
+async function updateUI(){
+  const activeReps=currentMode==='auto'?autoReports:reports;
+  const ag=await calcAG999(activeReps);
+  const rg=getRegime(ag.regime);
+  const n=activeReps.length;
+  document.getElementById('h-reports').textContent=n;
+  document.getElementById('h-d2').textContent=ag.D2.toFixed(3);
+  document.getElementById('h-f').textContent=ag.F.toFixed(4);
+  const pct=Math.min((ag.level||0)*100,100);
+  document.getElementById('gfill').style.cssText=`width:${pct}%;background:${gcolor(ag.level||0)};`;
+  const rgEl=document.getElementById('regime');
+  rgEl.className='regime '+rg.cls;
+  rgEl.innerHTML=`<span class="dot ${rg.dot}"></span>${rg.label}`;
+  document.getElementById('tD2').textContent=(ag.D2||0).toFixed(3);
+  document.getElementById('tLVL').textContent=(ag.level||0).toFixed(3);
+  document.getElementById('ov-d2').textContent=(ag.D2||0).toFixed(3);
+  document.getElementById('ov-f').textContent=(ag.F||1).toFixed(4);
+  const ovR=document.getElementById('ov-regime');
+  ovR.textContent=rg.label.split('·')[0].trim(); ovR.className='mov-val '+rg.oc;
+  const c=activeReps.filter(r=>r.damage==='complete').length;
+  const p=activeReps.filter(r=>r.damage==='partial').length;
+  const nn=activeReps.filter(r=>r.damage==='none').length;
+  document.getElementById('ov-tot').textContent=n;
+  document.getElementById('ov-c').textContent=c;
+  document.getElementById('ov-p').textContent=p;
+  document.getElementById('ov-n').textContent=nn;
+  document.getElementById('rcount').textContent=n;
+
+  // VERSIONING — group reports in list
+  const t=T[currentLang]||T.en;
+  const el=document.getElementById('rlist');
+  el.innerHTML='';
+  const grouped=groupReports([...activeReps].reverse().slice(0,60));
+  grouped.slice(0,20).forEach(({latest:r,count})=>{
+    const dc={none:'cg',partial:'co',complete:'cr'}[r.damage];
+    const dl=(t['dmg_'+r.damage])||r.damage;
+    const mine=myReportIds.has(r.id);
+    const verBadge=count>1?`<span class="version-badge">${count} ${t.versions||'v'} · ${t.latest||'latest'}</span>`:'';
+    const d=document.createElement('div');
+    d.className='ritem '+r.damage;
+    d.innerHTML=`<div class="rtime">${r.ts||''} ${mine?'<span style="color:#818cf8;font-size:9px;">● you</span>':''}${verBadge}</div>
+      <div class="rtype">${r.infraType} · ${r.crisisType}</div>
+      <div class="rloc">${(r.lat||0).toFixed(4)}, ${(r.lng||0).toFixed(4)}</div>
+      <div class="rdmg ${dc}">${dl}</div>
+      ${r.desc?`<div style="font-size:10px;color:#64748b;margin-top:2px;">${r.desc}</div>`:''}
+      ${r.photo?`<img class="rthumb" src="${r.photo}" onclick="openLightbox('${r.photo}')"/>`:''}`;
+    el.appendChild(d);
+  });
+  if(heatOn) renderHeat();
+  // Show load-more button if more reports exist
+  const lmBtn = document.getElementById("load-more-btn");
+  if(lmBtn && currentMode === "manual") {
+    lmBtn.style.display = (!allLoaded && totalReportCount > reports.length) ? "block" : "none";
+    if(!allLoaded) lmBtn.textContent = `Load more (${reports.length}/${totalReportCount.toLocaleString()})`;
+  }
+}
+
+// ── MARKERS ─────────────────────────────────────────
+function addMarkerToMap(r){
+  if(markers[r.id]) return;
+  const color=mColors[r.damage]||'#818cf8';
+  const mine=myReportIds.has(r.id);
+  const sz=mine?17:13;
+  const icon=L.divIcon({className:'',
+    html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${color};border:${mine?'3px solid white':'2px solid rgba(255,255,255,0.6)'};box-shadow:0 0 7px ${color}88;"></div>`,
+    iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+  const mk=L.marker([r.lat,r.lng],{icon}).addTo(map);
+  mk.bindPopup(`<b>${r.infraType}</b><br>${r.crisisType}<br><b style="color:${color}">${r.damage}</b><br>${r.desc||''}<br><small>${r.ts||''}</small>`);
+  markers[r.id]=mk;
+}
+
+// ── FIRESTORE — PAGINATED (scale to 500k) ───────────
+// PAGE_SIZE: how many reports to load per page
+// Only latest PAGE_SIZE shown in list — map shows clusters
+const PAGE_SIZE = 100;
+let totalReportCount = 0;
+let lastVisible = null;
+let allLoaded = false;
+
+// ── CLUSTERING — group nearby markers into one pin ──
+// Uses simple grid clustering: groups within ~1km cells
+const CLUSTER_GRID = 0.01; // ~1km
+let clusterMarkers = [];
+
+function buildClusters(reps) {
+  const cells = {};
+  reps.forEach(r => {
+    const k = Math.round(r.lat/CLUSTER_GRID)+'|'+Math.round(r.lng/CLUSTER_GRID);
+    if(!cells[k]) cells[k] = [];
+    cells[k].push(r);
+  });
+  return Object.values(cells);
+}
+
+function renderClusters(reps) {
+  clusterMarkers.forEach(m => map.removeLayer(m));
+  clusterMarkers = [];
+  const clusters = buildClusters(reps);
+  clusters.forEach(group => {
+    const rep = group[0];
+    const n = group.length;
+    const color = mColors[rep.damage] || '#818cf8';
+    const sz = n > 10 ? 36 : n > 3 ? 28 : 20;
+    const icon = L.divIcon({className:'',
+      html: n > 1
+        ? `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 0 8px ${color}88;display:flex;align-items:center;justify-content:center;font-size:${sz>28?13:10}px;font-weight:700;color:white;">${n}</div>`
+        : `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.7);box-shadow:0 0 7px ${color}88;"></div>`,
+      iconSize:[sz,sz], iconAnchor:[sz/2,sz/2]
+    });
+    const mk = L.marker([rep.lat, rep.lng], {icon}).addTo(map);
+    const dmgCounts = group.reduce((a,r)=>{a[r.damage]=(a[r.damage]||0)+1;return a;},{});
+    mk.bindPopup(`<b>${n} report${n>1?'s':''}</b> in this area<br>
+      🔴 Complete: ${dmgCounts.complete||0}<br>
+      🟠 Partial: ${dmgCounts.partial||0}<br>
+      🟢 Minimal: ${dmgCounts.none||0}<br>
+      <small>Latest: ${rep.ts||''}</small>`);
+    clusterMarkers.push(mk);
+  });
+}
+
+// ── SAMPLING — AG-999 on representative sample ──────
+// For large datasets, sample max 200 reports for calculation
+// Biases toward most severe (complete > partial > none)
+function sampleReports(reps, maxN = 200) {
+  if(reps.length <= maxN) return reps;
+  const complete = reps.filter(r=>r.damage==='complete');
+  const partial  = reps.filter(r=>r.damage==='partial');
+  const none     = reps.filter(r=>r.damage==='none');
+  // Proportional sample preserving severity distribution
+  const ratio = maxN / reps.length;
+  const sample = [
+    ...complete.slice(0, Math.ceil(complete.length * ratio)),
+    ...partial.slice(0,  Math.ceil(partial.length  * ratio)),
+    ...none.slice(0,     Math.ceil(none.length     * ratio)),
+  ];
+  return sample.slice(0, maxN);
+}
+
+// ── LOAD MORE button ────────────────────────────────
+window.loadMoreReports = async function() {
+  if(allLoaded || !lastVisible) return;
+  const btn = document.getElementById('load-more-btn');
+  if(btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+  const nextQ = query(collection(db,'reports'), orderBy('createdAt','desc'), startAfter(lastVisible), limit(PAGE_SIZE));
+  const snap = await getDocs(nextQ);
+  if(snap.empty || snap.docs.length < PAGE_SIZE) allLoaded = true;
+  snap.forEach(ds => {
+    const d = ds.data();
+    const r = {id:ds.id,lat:d.lat,lng:d.lng,infraType:d.infraType,crisisType:d.crisisType,
+      damage:d.damage,desc:d.desc||'',ts:d.ts||'',photo:d.photo||null,debris:d.debris||'no',lang:d.lang||'en'};
+    if(!reports.find(x=>x.id===r.id)) reports.push(r);
+  });
+  lastVisible = snap.docs[snap.docs.length-1] || lastVisible;
+  renderClusters(reports);
+  updateUI();
+  if(btn) { btn.disabled = false; btn.textContent = allLoaded ? '✓ All loaded' : `Load more (${reports.length}/${totalReportCount})`; }
+};
+
+// ── FIRESTORE LISTENER — paginated, desc order ──────
+const q = query(collection(db,'reports'), orderBy('createdAt','desc'), limit(PAGE_SIZE));
+onSnapshot(q, async (snapshot) => {
+  document.getElementById('sdot').className = 'status-dot sd-live';
+
+  // Get total count (1 read — cheap)
+  try {
+    const countSnap = await getCountFromServer(collection(db,'reports'));
+    totalReportCount = countSnap.data().count;
+  } catch(e) { totalReportCount = snapshot.size; }
+
+  document.getElementById('stxt').textContent =
+    `Connected — ${totalReportCount.toLocaleString()} total reports · showing latest ${snapshot.size}`;
+
+  reports = [];
+  snapshot.forEach(ds => {
+    const d = ds.data();
+    const r = {id:ds.id,lat:d.lat,lng:d.lng,infraType:d.infraType,crisisType:d.crisisType,
+      damage:d.damage,desc:d.desc||'',ts:d.ts||'',photo:d.photo||null,debris:d.debris||'no',lang:d.lang||'en'};
+    reports.push(r);
+    if(myReportIds.has(r.id)) addMarkerToMap(r); // always show own markers
+  });
+
+  lastVisible = snapshot.docs[snapshot.docs.length - 1];
+  allLoaded = snapshot.size < PAGE_SIZE;
+
+  // Use clusters for map display
+  if(currentMode === 'manual') {
+    renderClusters(reports);
+    updateUI();
+  }
+}, (err) => {
+  document.getElementById('sdot').className = 'status-dot sd-err';
+  document.getElementById('stxt').textContent = `Error: ${err.message}`;
+});
+
+// ── PHOTO ────────────────────────────────────────────
+window.onPhotoSelect=function(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      const MAX=600; let w=img.width,h=img.height;
+      if(w>h){if(w>MAX){h=h*MAX/w;w=MAX;}}else{if(h>MAX){w=w*MAX/h;h=MAX;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      photoBase64=canvas.toDataURL('image/jpeg',0.7);
+      const prev=document.getElementById('photo-preview');
+      prev.src=photoBase64;prev.style.display='block';
+      document.getElementById('photo-icon').style.display='none';
+      const t=T[currentLang]||T.en;
+      document.getElementById('photo-label').textContent='✓ Photo selected';
+      document.getElementById('photo-area').classList.add('has-photo');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+// ── GPS ──────────────────────────────────────────────
+window.useGPS=function(){
+  if(!navigator.geolocation){alert('GPS not available.');return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    document.getElementById('inp-lat').value=pos.coords.latitude.toFixed(5);
+    document.getElementById('inp-lng').value=pos.coords.longitude.toFixed(5);
+  },()=>alert('Could not get GPS.'));
+};
+
+// ── DAMAGE SELECT ────────────────────────────────────
+window.setDmg=function(type){
+  selDmg=type;
+  ['none','partial','complete'].forEach(t=>{
+    document.getElementById('db-'+t).className='dmg-btn'+(t===type?' dmg-'+t:'');
+  });
+};
+setDmg('partial');
+
+
+// ── CLEAR ────────────────────────────────────────────
+window.clearMyReports=async function(){
+  if(!myReportIds.size){alert('No reports from this session.');return;}
+  if(!confirm(`Delete your ${myReportIds.size} report(s)?`)) return;
+  for(const id of myReportIds) await deleteDoc(doc(db,'reports',id));
+  myReportIds.clear();
+};
+
+// ── HEATMAP ──────────────────────────────────────────
+function renderHeat(){
+  heatCircles.forEach(c=>map.removeLayer(c));heatCircles=[];
+  const reps=currentMode==='auto'?autoReports:reports;
+  reps.forEach(r=>{
+    const intensity={none:0.2,partial:0.6,complete:1.0}[r.damage];
+    const c=L.circle([r.lat,r.lng],{radius:500,color:'transparent',fillColor:mColors[r.damage],fillOpacity:0.22*intensity}).addTo(map);
+    heatCircles.push(c);
+  });
+}
+window.toggleHeat=function(){
+  heatOn=!heatOn;
+  if(heatOn)renderHeat();else{heatCircles.forEach(c=>map.removeLayer(c));heatCircles=[];}
+};
+
+// ── LIGHTBOX ─────────────────────────────────────────
+window.openLightbox=function(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('open');};
+window.closeLightbox=function(){document.getElementById('lightbox').classList.remove('open');};
+
+// ── EXPORT ───────────────────────────────────────────
+function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+window.exportGeoJSON=async function(){
+  const reps=currentMode==='auto'?autoReports:reports;
+  const ag=await calcAG999(reps);const rg=getRegime(ag.regime);
+  const gj={type:'FeatureCollection',metadata:{generated:new Date().toISOString(),engine:'AG-999 v2026',D2:ag.D2,F:ag.F,regime:rg.label,total:reps.length,mode:currentMode},
+    features:reps.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lng,r.lat]},
+      properties:{id:r.id,timestamp:r.ts,infraType:r.infraType,crisisType:r.crisisType,damage:r.damage,source:r.source||'manual',debris:r.debris||'no',description:r.desc}}))};
+  dl(JSON.stringify(gj,null,2),'ag999_export.geojson','application/json');
+};
+window.exportCSV=async function(){
+  const reps=currentMode==='auto'?autoReports:reports;
+  const ag=await calcAG999(reps);const rg=getRegime(ag.regime);
+  const rows=[['id','timestamp','lat','lng','infraType','crisisType','damage','debris','source','lang','description','ag999_D2','ag999_F','regime'],
+    ...reps.map(r=>[r.id,r.ts,(r.lat||0).toFixed(6),(r.lng||0).toFixed(6),r.infraType,r.crisisType,r.damage,r.debris||'no',r.source||'manual',r.lang||'en',
+      `"${(r.desc||'').replace(/"/g,'""')}"`,ag.D2,ag.F,rg.label])];
+  dl(rows.map(r=>r.join(',')).join('\n'),'ag999_export.csv','text/csv');
+};
+
+
+// ── INDEXEDDB OUTBOX ─────────────────────────────────
+let idb = null;
+
+async function openOfflineDB() {
+  if (idb) return idb;
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ag999-offline', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('outbox')) {
+        db.createObjectStore('outbox', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { idb = e.target.result; resolve(idb); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function saveToOutbox(reportData) {
+  const db = await openOfflineDB();
+  const id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('outbox', 'readwrite');
+    tx.objectStore('outbox').put({ id, data: reportData, createdAt: Date.now() });
+    tx.oncomplete = () => resolve(id);
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function getOutboxCount() {
+  const db = await openOfflineDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('outbox', 'readonly');
+    const req = tx.objectStore('outbox').count();
+    req.onsuccess = e => resolve(e.target.result || 0);
+    req.onerror = () => resolve(0);
+  });
+}
+
+async function getOutboxAll() {
+  const db = await openOfflineDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('outbox', 'readonly');
+    const req = tx.objectStore('outbox').getAll();
+    req.onsuccess = e => resolve(e.target.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function deleteFromOutbox(id) {
+  const db = await openOfflineDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('outbox', 'readwrite');
+    tx.objectStore('outbox').delete(id);
+    tx.oncomplete = resolve;
+  });
+}
+
+async function updateQueueBadge() {
+  const count = await getOutboxCount();
+  const el = document.getElementById('queue-count');
+  if (el) el.textContent = count + ' queued';
+  return count;
+}
+
+// ── ONLINE/OFFLINE DETECTION ─────────────────────────
+function setOfflineUI(offline) {
+  const bar = document.getElementById('offline-bar');
+  const sdot = document.getElementById('sdot');
+  if (!bar) return;
+  if (offline) {
+    bar.classList.add('show');
+    if (sdot) sdot.style.background = '#f59e0b';
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+window.addEventListener('online', async () => {
+  setOfflineUI(false);
+  await syncOutboxNow();
+});
+window.addEventListener('offline', () => {
+  setOfflineUI(true);
+  updateQueueBadge();
+});
+
+// Check on load
+if (!navigator.onLine) setOfflineUI(true);
+
+// ── MANUAL SYNC — flush outbox when back online ───────
+async function syncOutboxNow() {
+  const items = await getOutboxAll();
+  if (!items.length) return;
+
+  const syncBar = document.getElementById('sync-bar');
+  const syncMsg = document.getElementById('sync-msg');
+  if (syncBar) syncBar.classList.add('show');
+  if (syncMsg) syncMsg.textContent = `Syncing ${items.length} offline report(s)...`;
+
+  let synced = 0;
+  for (const item of items) {
+    try {
+      const data = { ...item.data, createdAt: serverTimestamp() };
+      await addDoc(collection(db, 'reports'), data);
+      await deleteFromOutbox(item.id);
+      synced++;
+    } catch (e) {
+      console.warn('Sync failed for', item.id, e);
+    }
+  }
+
+  if (syncMsg) syncMsg.textContent = `✓ ${synced} report(s) synced!`;
+  setTimeout(() => { if (syncBar) syncBar.classList.remove('show'); }, 3000);
+  await updateQueueBadge();
+  showToast(`✓ ${synced} offline report(s) synced!`);
+}
+
+// ── OVERRIDE submitReport — offline aware ────────────
+
+window.submitReport = async function() {
+  const lat = parseFloat(document.getElementById('inp-lat').value);
+  const lng = parseFloat(document.getElementById('inp-lng').value);
+  const errEl = document.getElementById('err-msg');
+  errEl.style.display = 'none';
+  if (isNaN(lat) || isNaN(lng)) {
+    errEl.textContent = '⚠️ Enter latitude and longitude.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+
+  const ts = new Date().toISOString().slice(0,19).replace('T',' ');
+  const data = {
+    lat, lng,
+    infraType:  document.getElementById('sel-infra').value,
+    crisisType: document.getElementById('sel-crisis').value,
+    damage:     selDmg,
+    desc:       document.getElementById('inp-desc').value,
+    debris:     document.getElementById('sel-debris').value,
+    lang:       currentLang,
+    ts,
+  };
+  if (photoBase64) data.photo = photoBase64;
+
+  if (!navigator.onLine) {
+    // ── OFFLINE PATH — save to IndexedDB outbox ──────
+    try {
+      await saveToOutbox(data);
+      const count = await updateQueueBadge();
+      const t = T[currentLang] || T.en;
+      showToast(`📵 Saved offline — ${count} queued`);
+      addXP(5); // 5 pts for offline report (10 when synced)
+
+      // Reset form
+      ['inp-lat','inp-lng','inp-desc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('photo-input').value = '';
+      document.getElementById('photo-preview').style.display = 'none';
+      document.getElementById('photo-icon').style.display = '';
+      document.getElementById('photo-label').textContent = t.photo_tap || 'Tap to take photo';
+      document.getElementById('photo-area').classList.remove('has-photo');
+      photoBase64 = null;
+
+      btn.textContent = '📵 Saved offline';
+      setTimeout(() => { btn.disabled = false; btn.textContent = (T[currentLang]||T.en).send_report || '📤 Send Report'; }, 2500);
+    } catch(e) {
+      errEl.textContent = 'Error saving offline: ' + e.message;
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = (T[currentLang]||T.en).send_report || '📤 Send Report';
+    }
+    return;
+  }
+
+  // ── ONLINE PATH — send to Firebase ───────────────
+  try {
+    const docRef = await addDoc(collection(db, 'reports'), { ...data, createdAt: serverTimestamp() });
+    myReportIds.add(docRef.id);
+    map.setView([lat, lng], Math.max(map.getZoom(), 12));
+    ['inp-lat','inp-lng','inp-desc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('photo-input').value = '';
+    document.getElementById('photo-preview').style.display = 'none';
+    document.getElementById('photo-icon').style.display = '';
+    const t = T[currentLang] || T.en;
+    document.getElementById('photo-label').textContent = t.photo_tap || 'Tap to take photo';
+    document.getElementById('photo-area').classList.remove('has-photo');
+    photoBase64 = null;
+    addXP(10);
+    showToast((T[currentLang]||T.en).sent_ok || '✓ Sent! +10 pts');
+    btn.textContent = '✓ Sent!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = (T[currentLang]||T.en).send_report || '📤 Send Report'; }, 2500);
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = (T[currentLang]||T.en).send_report || '📤 Send Report';
+  }
+};
+
+// ── SERVICE WORKER REGISTRATION ───────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./service-worker.js');
+      console.log('SW registered:', reg.scope);
+
+      // Listen for sync complete messages from SW
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data && e.data.type === 'SYNC_COMPLETE') {
+          showToast(`✓ ${e.data.synced} report(s) synced in background!`);
+          updateQueueBadge();
+        }
+      });
+
+      // Register background sync when online
+      if ('SyncManager' in window && reg.active) {
+        navigator.serviceWorker.ready.then(r => {
+          r.sync.register('ag999-sync-reports').catch(() => {});
+        });
+      }
+    } catch(e) {
+      console.warn('SW registration failed:', e);
+    }
+  });
+}
+
+// ── PWA INSTALL PROMPT ────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'block';
+});
+document.getElementById('install-btn')?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('✓ AG-999 installed!');
+  deferredPrompt = null;
+  document.getElementById('install-btn').style.display = 'none';
+});
+
+// Check queue on load
+updateQueueBadge();
+
+// ── BUILDING FOOTPRINTS (OpenStreetMap Overpass) ─────
+let footprintLayer = null;
+let footprintEnabled = false;
+let selectedBuilding = null;
+
+// Fetch building polygons from OSM within map bounds
+async function fetchFootprints() {
+  const zoom = map.getZoom();
+  if(zoom < 15) {
+    showToast('🔍 Zoom in more to see building footprints (zoom 15+)');
+    return;
+  }
+  const b = map.getBounds();
+  const s = b.getSouth().toFixed(5), w = b.getWest().toFixed(5);
+  const n = b.getNorth().toFixed(5), e = b.getEast().toFixed(5);
+
+  showToast('🏗️ Loading buildings from OpenStreetMap...');
+
+  const query = `
+    [out:json][timeout:15];
+    (
+      way["building"](${s},${w},${n},${e});
+      relation["building"](${s},${w},${n},${e});
+    );
+    out body;
+    >;
+    out skel qt;
+  `;
+
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    });
+    const data = await res.json();
+    renderFootprints(data);
+  } catch(e) {
+    showToast('⚠️ Could not load buildings. Try again.');
+  }
+}
+
+function renderFootprints(data) {
+  if(footprintLayer) { map.removeLayer(footprintLayer); footprintLayer = null; }
+
+  // Build node map
+  const nodes = {};
+  data.elements.forEach(el => { if(el.type === 'node') nodes[el.id] = [el.lat, el.lon]; });
+
+  const features = [];
+  data.elements.forEach(el => {
+    if(el.type === 'way' && el.nodes) {
+      const coords = el.nodes.map(id => nodes[id]).filter(Boolean);
+      if(coords.length > 2) {
+        features.push({
+          type: 'Feature',
+          properties: { id: el.id, tags: el.tags || {} },
+          geometry: { type: 'Polygon', coordinates: [coords.map(([lat,lng]) => [lng, lat])] }
+        });
+      }
+    }
+  });
+
+  const geojson = { type: 'FeatureCollection', features };
+
+  footprintLayer = L.geoJSON(geojson, {
+    style: {
+      color: '#4f46e5',
+      weight: 1.5,
+      fillColor: '#818cf8',
+      fillOpacity: 0.15,
+    },
+    onEachFeature: (feature, layer) => {
+      layer.on('click', async (e) => {
+        L.DomEvent.stopPropagation(e);
+        const center = layer.getBounds().getCenter();
+        document.getElementById('inp-lat').value = center.lat.toFixed(5);
+        document.getElementById('inp-lng').value = center.lng.toFixed(5);
+
+        // Highlight selected building
+        if(selectedBuilding) selectedBuilding.setStyle({fillColor:'#818cf8', fillOpacity:0.15, color:'#4f46e5'});
+        layer.setStyle({fillColor:'#f59e0b', fillOpacity:0.5, color:'#fbbf24', weight:2.5});
+        selectedBuilding = layer;
+
+        // Check if this building has existing reports
+        const existing = reports.filter(r => {
+          const d = Math.sqrt(Math.pow(r.lat - center.lat, 2) + Math.pow(r.lng - center.lng, 2));
+          return d < 0.0005;
+        });
+
+        const name = feature.properties.tags?.name || feature.properties.tags?.['addr:street'] || `Building #${feature.properties.id}`;
+        const popupContent = existing.length > 0
+          ? `<b>🏠 ${name}</b><br><span style="color:#fb923c">⚠️ ${existing.length} existing report(s)</span><br>Latest: <b style="color:${mColors[existing[0].damage]}">${existing[0].damage}</b><br><small>Click to pre-fill form</small>`
+          : `<b>🏠 ${name}</b><br><span style="color:#4ade80">No reports yet</span><br><small>Click to select this building</small>`;
+
+        layer.bindPopup(popupContent).openPopup();
+        showToast(`📍 Building selected — form pre-filled`);
+      });
+    }
+  }).addTo(map);
+
+  const count = features.length;
+  showToast(`✅ ${count} building${count!==1?'s':''} loaded`);
+}
+
+// Color footprints based on damage reports
+function updateFootprintColors() {
+  if(!footprintLayer) return;
+  footprintLayer.eachLayer(layer => {
+    const center = layer.getBounds().getCenter();
+    const nearby = reports.filter(r => {
+      const d = Math.sqrt(Math.pow(r.lat - center.lat, 2) + Math.pow(r.lng - center.lng, 2));
+      return d < 0.0005;
+    });
+    if(!nearby.length) {
+      layer.setStyle({fillColor:'#818cf8', fillOpacity:0.15, color:'#4f46e5', weight:1.5});
+    } else {
+      const worst = nearby.find(r=>r.damage==='complete') || nearby.find(r=>r.damage==='partial') || nearby[0];
+      const colors = {complete:'#f87171', partial:'#fb923c', none:'#4ade80'};
+      layer.setStyle({fillColor:colors[worst.damage], fillOpacity:0.5, color:colors[worst.damage], weight:2});
+    }
+  });
+}
+
+window.toggleFootprints = async function() {
+  footprintEnabled = !footprintEnabled;
+  const btn = document.getElementById('btn-footprints');
+  if(footprintEnabled) {
+    if(btn) { btn.style.background='rgba(79,70,229,0.3)'; btn.style.color='#a5b4fc'; }
+    await fetchFootprints();
+    map.on('moveend', onMapMove);
+  } else {
+    if(btn) { btn.style.background=''; btn.style.color=''; }
+    if(footprintLayer) { map.removeLayer(footprintLayer); footprintLayer = null; }
+    map.off('moveend', onMapMove);
+  }
+};
+
+async function onMapMove() {
+  if(footprintEnabled) await fetchFootprints();
+}
+
+// Auto-color footprints when reports update
+const _origUpdateUI = updateUI;
+// Init
+applyTranslations();
+setMode('manual');
+updateXPDisplay();
+</script>
+</body>
+</html>
