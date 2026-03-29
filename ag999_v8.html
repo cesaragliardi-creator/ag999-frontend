@@ -279,6 +279,23 @@ body { background: #0f1117; color: #e2e8f0; min-height: 100vh; }
         <textarea id="inp-desc" data-i18n-ph="desc_placeholder"></textarea>
       </div>
       <div class="row">
+        <label data-i18n="landmark_label">📍 Location reference (if no GPS)</label>
+        <select id="sel-landmark-type" style="margin-bottom:5px;" onchange="updateLandmarkHint()">
+          <option value="" data-i18n="landmark_none">-- Select a reference point --</option>
+          <option value="school" data-i18n="lm_school">Near a school</option>
+          <option value="hospital" data-i18n="lm_hospital">Near a hospital</option>
+          <option value="market" data-i18n="lm_market">Near a market / commercial area</option>
+          <option value="church" data-i18n="lm_church">Near a church / mosque / temple</option>
+          <option value="bridge" data-i18n="lm_bridge">Near a bridge</option>
+          <option value="square" data-i18n="lm_square">Near a public square / plaza</option>
+          <option value="station" data-i18n="lm_station">Near a bus / train station</option>
+          <option value="government" data-i18n="lm_government">Near a government building</option>
+          <option value="other" data-i18n="lm_other">Other landmark</option>
+        </select>
+        <input type="text" id="inp-landmark" data-i18n-ph="landmark_ph" placeholder="e.g. next to the central market, 200m north" style="display:none;"/>
+        <div id="landmark-hint" style="font-size:10px;color:#64748b;margin-top:3px;display:none;"></div>
+      </div>
+      <div class="row">
         <label data-i18n="debris">Debris requiring clearing?</label>
         <select id="sel-debris">
           <option value="no" data-i18n="no">No</option>
@@ -449,6 +466,7 @@ const T = {
     damage_level:'Damage level', dmg_none:'Minimal/None', dmg_partial:'Partially damaged', dmg_complete:'Completely destroyed',
     description:'Description', desc_placeholder:'e.g. Bridge collapsed, school destroyed...',
     debris:'Debris requiring clearing?', no:'No', yes:'Yes', unknown:'Unknown',
+    landmark_label:'Location reference (if no GPS)', landmark_none:'-- Select a reference point --', landmark_ph:'e.g. next to the central market, 200m north', lm_school:'Near a school', lm_hospital:'Near a hospital', lm_market:'Near a market', lm_church:'Near a church/mosque/temple', lm_bridge:'Near a bridge', lm_square:'Near a public square', lm_station:'Near a bus/train station', lm_government:'Near a government building', lm_other:'Other landmark', landmark_hint_school:'Example: "100m west of the main school"', landmark_hint_market:'Example: "behind the central market"', landmark_hint_other:'Describe the nearest known landmark',
     send_report:'📤 Send Report', auto_data:'Automatic Data · Climate & Seismic',
     auto_info:'Fetches real data from public APIs automatically. Data not stored.',
     region:'Region', reg_brasil:'Brazil — Main Cities', reg_sul:'South Brazil', reg_sudeste:'Southeast', reg_nordeste:'Northeast', reg_norte:'North',
@@ -474,6 +492,7 @@ const T = {
     damage_level:'Niveau de dommages', dmg_none:'Minimal/Aucun', dmg_partial:'Partiellement endommagé', dmg_complete:'Complètement détruit',
     description:'Description', desc_placeholder:'ex: Pont effondré, école détruite...',
     debris:'Débris à dégager?', no:'Non', yes:'Oui', unknown:'Inconnu',
+    landmark_label:'Référence de localisation (sans GPS)', landmark_none:'-- Sélectionner un point de référence --', landmark_ph:'ex: à côté du marché central, 200m au nord', lm_school:'Près d\'une école', lm_hospital:'Près d\'un hôpital', lm_market:'Près d\'un marché', lm_church:'Près d\'une église/mosquée/temple', lm_bridge:'Près d\'un pont', lm_square:'Près d\'une place publique', lm_station:'Près d\'une gare', lm_government:'Près d\'un bâtiment gouvernemental', lm_other:'Autre point de repère', landmark_hint_school:'Exemple: "100m à l\'ouest de l\'école"', landmark_hint_market:'Exemple: "derrière le marché central"', landmark_hint_other:'Décrivez le repère le plus proche',
     send_report:'📤 Envoyer rapport', auto_data:'Données automatiques · Climat & Séismes',
     auto_info:'Récupère des données réelles automatiquement.',
     region:'Région', reg_brasil:'Brésil', reg_sul:'Sud Brésil', reg_sudeste:'Sud-Est', reg_nordeste:'Nord-Est', reg_norte:'Nord',
@@ -499,6 +518,7 @@ const T = {
     damage_level:'Nivel de daño', dmg_none:'Mínimo/Ninguno', dmg_partial:'Parcialmente dañado', dmg_complete:'Completamente destruido',
     description:'Descripción', desc_placeholder:'ej: Puente colapsado, escuela destruida...',
     debris:'¿Escombros que requieren limpieza?', no:'No', yes:'Sí', unknown:'Desconocido',
+    landmark_label:'Referencia de ubicación (sin GPS)', landmark_none:'-- Seleccionar punto de referencia --', landmark_ph:'ej: junto al mercado central, 200m al norte', lm_school:'Cerca de una escuela', lm_hospital:'Cerca de un hospital', lm_market:'Cerca de un mercado', lm_church:'Cerca de una iglesia/mezquita/templo', lm_bridge:'Cerca de un puente', lm_square:'Cerca de una plaza pública', lm_station:'Cerca de una estación', lm_government:'Cerca de un edificio gubernamental', lm_other:'Otro punto de referencia', landmark_hint_school:'Ejemplo: "100m al oeste de la escuela"', landmark_hint_market:'Ejemplo: "detrás del mercado central"', landmark_hint_other:'Describa el punto de referencia más cercano',
     send_report:'📤 Enviar reporte', auto_data:'Datos automáticos · Clima y Sismos',
     auto_info:'Obtiene datos reales de APIs públicas automáticamente.',
     region:'Región', reg_brasil:'Brasil', reg_sul:'Sur de Brasil', reg_sudeste:'Sudeste', reg_nordeste:'Nordeste', reg_norte:'Norte',
@@ -524,6 +544,7 @@ const T = {
     damage_level:'Уровень ущерба', dmg_none:'Минимальный/Нет', dmg_partial:'Частично повреждён', dmg_complete:'Полностью разрушен',
     description:'Описание', desc_placeholder:'напр: Мост обрушился...',
     debris:'Требуется расчистка завалов?', no:'Нет', yes:'Да', unknown:'Неизвестно',
+    landmark_label:'Ориентир (без GPS)', landmark_none:'-- Выберите ориентир --', landmark_ph:'напр: рядом с центральным рынком, 200м к северу', lm_school:'Рядом со школой', lm_hospital:'Рядом с больницей', lm_market:'Рядом с рынком', lm_church:'Рядом с церковью/мечетью', lm_bridge:'Рядом с мостом', lm_square:'Рядом с площадью', lm_station:'Рядом со станцией', lm_government:'Рядом с правительственным зданием', lm_other:'Другой ориентир', landmark_hint_school:'Пример: "100м к западу от школы"', landmark_hint_market:'Пример: "за центральным рынком"', landmark_hint_other:'Опишите ближайший ориентир',
     send_report:'📤 Отправить', auto_data:'Авто данные · Климат и Сейсмика',
     auto_info:'Автоматически получает данные из публичных API.',
     region:'Регион', reg_brasil:'Бразилия', reg_sul:'Юг Бразилии', reg_sudeste:'Юго-Восток', reg_nordeste:'Северо-Восток', reg_norte:'Север',
@@ -549,6 +570,7 @@ const T = {
     damage_level:'损坏程度', dmg_none:'轻微/无损', dmg_partial:'部分损坏', dmg_complete:'完全摧毁',
     description:'描述', desc_placeholder:'例如：桥梁倒塌，学校损毁...',
     debris:'需要清理碎片？', no:'否', yes:'是', unknown:'未知',
+    landmark_label:'位置参考（无GPS时）', landmark_none:'-- 选择参考点 --', landmark_ph:'例如：中央市场旁边，向北200米', lm_school:'学校附近', lm_hospital:'医院附近', lm_market:'市场附近', lm_church:'教堂/清真寺附近', lm_bridge:'桥梁附近', lm_square:'广场附近', lm_station:'车站附近', lm_government:'政府建筑附近', lm_other:'其他地标', landmark_hint_school:'例如："学校西侧100米"', landmark_hint_market:'例如："中央市场后面"', landmark_hint_other:'描述最近的已知地标',
     send_report:'📤 发送报告', auto_data:'自动数据 · 气候与地震',
     auto_info:'自动从公共API获取实时数据。',
     region:'地区', reg_brasil:'巴西', reg_sul:'巴西南部', reg_sudeste:'东南部', reg_nordeste:'东北部', reg_norte:'北部',
@@ -574,6 +596,7 @@ const T = {
     damage_level:'مستوى الضرر', dmg_none:'ضئيل/لا يوجد', dmg_partial:'تضرر جزئي', dmg_complete:'دمار كامل',
     description:'الوصف', desc_placeholder:'مثال: انهار جسر، دُمّرت مدرسة...',
     debris:'هل توجد أنقاض تحتاج إلى إزالة؟', no:'لا', yes:'نعم', unknown:'غير معروف',
+    landmark_label:'مرجع الموقع (بدون GPS)', landmark_none:'-- اختر نقطة مرجعية --', landmark_ph:'مثال: بجانب السوق المركزي، 200م شمالاً', lm_school:'بالقرب من مدرسة', lm_hospital:'بالقرب من مستشفى', lm_market:'بالقرب من سوق', lm_church:'بالقرب من كنيسة/مسجد/معبد', lm_bridge:'بالقرب من جسر', lm_square:'بالقرب من ميدان عام', lm_station:'بالقرب من محطة', lm_government:'بالقرب من مبنى حكومي', lm_other:'معلم آخر', landmark_hint_school:'مثال: "100م غرب المدرسة"', landmark_hint_market:'مثال: "خلف السوق المركزي"', landmark_hint_other:'صف أقرب معلم معروف',
     send_report:'📤 إرسال التقرير', auto_data:'بيانات تلقائية · مناخ وزلازل',
     auto_info:'يجلب بيانات حقيقية من واجهات برمجية عامة تلقائياً.',
     region:'المنطقة', reg_brasil:'البرازيل', reg_sul:'جنوب البرازيل', reg_sudeste:'الجنوب الشرقي', reg_nordeste:'الشمال الشرقي', reg_norte:'الشمال',
@@ -599,6 +622,7 @@ const T = {
     damage_level:'Nível de dano', dmg_none:'Mínimo/Nenhum', dmg_partial:'Parcialmente danificado', dmg_complete:'Completamente destruído',
     description:'Descrição', desc_placeholder:'Ex: Ponte colapsada, escola destruída...',
     debris:'Escombros que precisam de limpeza?', no:'Não', yes:'Sim', unknown:'Desconhecido',
+    landmark_label:'Referência de localização (sem GPS)', landmark_none:'-- Selecione um ponto de referência --', landmark_ph:'Ex: ao lado do mercado central, 200m ao norte', lm_school:'Perto de escola', lm_hospital:'Perto de hospital', lm_market:'Perto de mercado', lm_church:'Perto de igreja/mesquita/templo', lm_bridge:'Perto de ponte', lm_square:'Perto de praça pública', lm_station:'Perto de estação de ônibus/trem', lm_government:'Perto de prédio governamental', lm_other:'Outro ponto de referência', landmark_hint_school:'Exemplo: "100m a oeste da escola principal"', landmark_hint_market:'Exemplo: "atrás do mercado central"', landmark_hint_other:'Descreva o ponto de referência mais próximo',
     send_report:'📤 Enviar Report', auto_data:'Dados Automáticos · Clima & Sismos',
     auto_info:'Busca dados reais de APIs públicas automaticamente. Dados não são salvos.',
     region:'Região', reg_brasil:'Brasil — Cidades Principais', reg_sul:'Sul do Brasil', reg_sudeste:'Sudeste', reg_nordeste:'Nordeste', reg_norte:'Norte',
@@ -1795,6 +1819,26 @@ pulseStyle.textContent = `
 .pulse-circle { animation: fieldPulse 2s ease-in-out infinite; }
 `;
 document.head.appendChild(pulseStyle);
+
+// ── LANDMARK SYSTEM ───────────────────────────────────
+window.updateLandmarkHint = function() {
+  const type = document.getElementById('sel-landmark-type').value;
+  const inp = document.getElementById('inp-landmark');
+  const hint = document.getElementById('landmark-hint');
+  const t = T[currentLang] || T.en;
+  if(!type) {
+    inp.style.display = 'none';
+    hint.style.display = 'none';
+    return;
+  }
+  inp.style.display = 'block';
+  hint.style.display = 'block';
+  const hintKey = 'landmark_hint_' + (type === 'school' ? 'school' : type === 'market' ? 'market' : 'other');
+  hint.textContent = t[hintKey] || '';
+  const phKey = 'landmark_ph';
+  inp.placeholder = t[phKey] || '';
+};
+
 // Init
 applyTranslations();
 setMode('manual');
